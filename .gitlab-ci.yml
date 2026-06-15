@@ -1,54 +1,33 @@
-image: maven:3.9.6-eclipse-temurin
-
 stages:
   - build
   - test
-  - package
 
 variables:
-  MAVEN_CLI_OPTS: "--batch-mode"
+  MAVEN_CLI_OPTS: "--batch-mode --errors --fail-at-end"
   MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
 
 cache:
-  key: ${CI_PROJECT_NAME}
+  key: ${CI_COMMIT_REF_SLUG}
   paths:
     - .m2/repository
 
-before_script:
-  - echo "Using Java version:"
-  - java -version
-  - echo "Using Maven version:"
-  - mvn -v
+.default-job-template:
+  image: eclipse-temurin:25-jdk
+  before_script:
+    # Install Maven (lightweight, no cache pollution)
+    - apt-get update -qq
+    - apt-get install -y -qq maven
+    - mvn -v
+    - java -version
 
 build:
   stage: build
+  extends: .default-job-template
   script:
     - mvn $MAVEN_CLI_OPTS clean compile
-  artifacts:
-    paths:
-      - target/
-    expire_in: 1 week
-  only:
-    - develop
-    - merge_requests
-    - feature/*
 
 test:
   stage: test
+  extends: .default-job-template
   script:
     - mvn $MAVEN_CLI_OPTS test
-  only:
-    - develop
-    - merge_requests
-    - feature/*
-
-package:
-  stage: package
-  script:
-    - mvn $MAVEN_CLI_OPTS package -DskipTests
-  artifacts:
-    paths:
-      - target/*.jar
-    expire_in: 1 week
-  only:
-    - master
